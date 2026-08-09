@@ -1,5 +1,5 @@
 import { Elysia, t } from 'elysia';
-import { usersService, UserAlreadyExistsError } from '../services/users-service';
+import { usersService, UserAlreadyExistsError, InvalidCredentialsError } from '../services/users-service';
 
 export const usersRoute = new Elysia({ prefix: '/api/users' })
   .post(
@@ -21,6 +21,29 @@ export const usersRoute = new Elysia({ prefix: '/api/users' })
     {
       body: t.Object({
         name: t.String({ minLength: 1 }),
+        email: t.String({ minLength: 1 }),
+        password: t.String({ minLength: 1 }),
+      }),
+    }
+  )
+  .post(
+    '/login',
+    async ({ body, set }) => {
+      try {
+        const result = await usersService.loginUser(body);
+        set.status = 200;
+        return result;
+      } catch (error) {
+        if (error instanceof InvalidCredentialsError) {
+          set.status = 400;
+          return { error: error.message };
+        }
+        set.status = 500;
+        return { error: 'Internal Server Error' };
+      }
+    },
+    {
+      body: t.Object({
         email: t.String({ minLength: 1 }),
         password: t.String({ minLength: 1 }),
       }),
