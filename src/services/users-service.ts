@@ -16,6 +16,13 @@ export class UserAlreadyExistsError extends Error {
   }
 }
 
+export class UnauthorizedError extends Error {
+  constructor() {
+    super('Unauthorized');
+    this.name = 'UnauthorizedError';
+  }
+}
+
 export interface LoginUserInput {
   email: string;
   password: string;
@@ -52,6 +59,34 @@ export const usersService = {
     });
 
     return { data: 'OK' as const };
+  },
+
+  async getCurrentUser(token: string) {
+    if (!token) {
+      throw new UnauthorizedError();
+    }
+    // Find session
+    const sessionResult = await db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.token, token))
+      .limit(1);
+    if (sessionResult.length === 0) {
+      throw new UnauthorizedError();
+    }
+    const session = sessionResult[0];
+    // Find user
+    const userResult = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, session.userId))
+      .limit(1);
+    if (userResult.length === 0) {
+      throw new UnauthorizedError();
+    }
+    const user = userResult[0];
+    const { password, ...rest } = user; // exclude password
+    return { data: rest };
   },
 
   async loginUser(input: LoginUserInput) {
